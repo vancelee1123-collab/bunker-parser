@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bunker Parser">
+<title>Bunker Parser</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: #f5f5f7;
+    color: #1c1c1e;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .header {
+    background: #fff;
+    padding: 16px 20px 12px;
+    border-bottom: 0.5px solid #d1d1d6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; color: #1c1c1e; }
+  .header p { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+
+  .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8e8e93;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 130px;
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    background: #f9f9f9;
+    color: #1c1c1e;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  textarea:focus { border-color: #007aff; background: #fff; }
+
+  .btn-parse {
+    width: 100%;
+    padding: 14px;
+    background: #007aff;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-parse:active { background: #0062cc; }
+  .btn-parse:disabled { background: #b0c4de; cursor: default; }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result-card { display: none; }
+
+  .field-row {
+    display: flex;
+    align-items: baseline;
+    padding: 11px 0;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .field-row:last-of-type { border-bottom: none; }
+  .field-key {
+    font-size: 13px;
+    color: #8e8e93;
+    width: 52px;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+  .field-val {
+    font-size: 16px;
+    font-weight: 500;
+    color: #1c1c1e;
+    flex: 1;
+  }
+  .field-val.missing {
+    font-size: 14px;
+    color: #c7c7cc;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .oneline-box {
+    background: #f5f5f7;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: #1c1c1e;
+    line-height: 1.6;
+    margin-top: 12px;
+    word-break: break-all;
+    font-family: 'Menlo', monospace;
+  }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-copy {
+    flex: 1;
+    padding: 12px 8px;
+    border-radius: 10px;
+    border: 1px solid #d1d1d6;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    color: #007aff;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-copy:active { background: #f0f0f0; }
+  .btn-copy.copied { color: #34c759; border-color: #34c759; }
+  .btn-reset {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #d1d1d6;
+    background: #fff;
+    font-size: 14px;
+    color: #8e8e93;
+    cursor: pointer;
+  }
+  .btn-reset:active { background: #f0f0f0; }
+
+  .error-msg {
+    background: #fff2f2;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+    color: #ff3b30;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .tip {
+    font-size: 13px;
+    color: #8e8e93;
+    text-align: center;
+    padding: 8px 0 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Bunker Parser</h1>
+  <p>인콰이어리 메시지를 자동으로 정리합니다</p>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <div class="card-label">인콰이어리 메시지</div>
+    <textarea id="rawInput" placeholder="여기에 받은 메시지를 붙여넣으세요.
+
+이메일, 카톡, 텔레그램 등
+어떤 형태든 그대로 넣으시면 됩니다."></textarea>
+    <button class="btn-parse" id="parseBtn" onclick="parseInquiry()">파싱하기</button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <div class="card-label">정리된 내용</div>
+    <div class="field-row">
+      <span class="field-key">선명</span>
+      <span class="field-val" id="r-vessel">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-key">포트</span>
+      <span class="field-val" id="r-port">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-key">날짜</span>
+      <span class="field-val" id="r-date">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-key">제품</span>
+      <span class="field-val" id="r-product">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-key">수량</span>
+      <span class="field-val" id="r-qty">—</span>
+    </div>
+
+    <div class="oneline-box" id="oneLine"></div>
+
+    <div class="btn-row">
+      <button class="btn-copy" id="copyLineBtn" onclick="copyLine()">한 줄 복사</button>
+      <button class="btn-copy" id="copyFullBtn" onclick="copyFull()">전체 복사</button>
+      <button class="btn-reset" onclick="reset()">초기화</button>
+    </div>
+  </div>
+
+  <p class="tip">영어·한국어·혼용 메시지 모두 인식합니다</p>
+
+</div>
+
+<script>
+const API_KEY = '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';
+let parsed = {};
+
+async function parseInquiry() {
+  const raw = document.getElementById('rawInput').value.trim();
+  if (!raw) return;
+
+  const btn = document.getElementById('parseBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>분석 중...';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('resultCard').style.display = 'none';
+
+  const prompt = `You are a bunker trading assistant. Extract key information from the inquiry message below and return ONLY a JSON object with these exact keys:
+- vessel: ship name only, no prefix like MV, MT, SS, MS (string, or null)
+- port: port name in UPPERCASE (string, or null)
+- date: ETA or delivery date, format like "3-5 APR" or "29 APR" (string, or null)
+- products: array of objects, each with "grade" (e.g. VLSFO, LSMGO, MGO, HSFO) and "qty" (e.g. "350MT"). List every product mentioned.
+
+Return ONLY valid JSON. No explanation, no markdown, no backticks.
+Example output: {"vessel":"MIZAR","port":"YOSU","date":"29 APR","products":[{"grade":"VLSFO","qty":"680MT"},{"grade":"MGO","qty":"40-60MT"}]}
+
+Message:
+${raw}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    let text = data.content?.[0]?.text || '';
+    text = text.replace(/```json|```/g, '').trim();
+    parsed = JSON.parse(text);
+    renderResult();
+  } catch(e) {
+    const errEl = document.getElementById('errorMsg');
+    errEl.textContent = '오류가 발생했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '파싱하기';
+  }
+}
+
+function renderResult() {
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (val) {
+      el.textContent = val;
+      el.classList.remove('missing');
+    } else {
+      el.textContent = '확인 필요';
+      el.classList.add('missing');
+    }
+  };
+
+  set('r-vessel', parsed.vessel);
+  set('r-port', parsed.port);
+  set('r-date', parsed.date);
+
+  const products = parsed.products || [];
+  const productStr = products.map(p => p.grade + ': ' + p.qty).join(' / ');
+  set('r-product', productStr || null);
+  document.getElementById('r-qty').parentElement.style.display = 'none';
+
+  const parts = [
+    parsed.vessel || '?',
+    parsed.port || '?',
+    parsed.date || '?',
+    ...products.map(p => p.grade + ': ' + p.qty)
+  ];
+  document.getElementById('oneLine').textContent = parts.join(' / ');
+
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyLine() {
+  const text = document.getElementById('oneLine').textContent;
+  navigator.clipboard.writeText(text).then(() => flash('copyLineBtn', '복사됨 ✓'));
+}
+
+function copyFull() {
+  const products = parsed.products || [];
+  const productLines = products.map(p => p.grade + ': ' + p.qty + '\n').join('');
+  const lines = [
+    '선명: ' + (parsed.vessel || '?'),
+    '포트: ' + (parsed.port || '?'),
+    '날짜: ' + (parsed.date || '?'),
+    '제품/수량: ' + (products.map(p => p.grade + ': ' + p.qty).join(', ') || '?')
+  ].join('\n');
+  navigator.clipboard.writeText(lines).then(() => flash('copyFullBtn', '복사됨 ✓'));
+}
+
+function flash(id, msg) {
+  const btn = document.getElementById(id);
+  const orig = btn.textContent;
+  btn.textContent = msg;
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+}
+
+function reset() {
+  document.getElementById('rawInput').value = '';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+  parsed = {};
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('rawInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.metaKey) parseInquiry();
+});
+</script>
+</body>
+</html>
